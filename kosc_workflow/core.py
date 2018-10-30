@@ -3,10 +3,10 @@
 from __future__ import unicode_literals
 
 import logging
-import datetime
 
 from functools import partial
 
+from .utils import transaction, now
 from .exceptions import InvalidTransition, ForbiddenTransition, TransitionDoesNotExist
 
 logger = logging.getLogger(__name__)
@@ -17,8 +17,6 @@ AFTER_TRANSITION_PREFIX = "after_"
 BEFORE_TRANSITION_PREFIX = "before_"
 CHECK_TRANSITION_PREFIX = "check_"
 TRANSITION_IMPLEMENTATION_PREFIX = "__"
-
-now = datetime.datetime.now
 
 
 def make_transition_implementation_private(dct):
@@ -274,6 +272,7 @@ class Workflow(metaclass=WorkflowMetaclass):
             to_state=transition["destination"]
         )
 
+    @transaction.atomic
     def _execute_transition(self, name, *args, **kwargs):
         """
 
