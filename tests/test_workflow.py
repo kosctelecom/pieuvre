@@ -3,7 +3,7 @@ import uuid
 
 from unittest import TestCase
 
-from kosc_workflow import Workflow, InvalidTransition, TransitionDoesNotExist, ForbiddenTransition
+from kosc_workflow import Workflow, InvalidTransition, TransitionDoesNotExist, ForbiddenTransition, transition
 
 
 class MyOrder(object):
@@ -61,6 +61,7 @@ class MyWorkflow(Workflow):
         # To test later if this implementation is called
         setattr(self.model, "before_submit_called", True)
 
+    @transition()
     def submit(self):
 
         # To test later if this implementation is called
@@ -79,7 +80,7 @@ class MyWorkflow(Workflow):
         setattr(self.model, "on_exit_draft_called", True)
 
     def check_submit(self):
-        if getattr(self.model, "allow_submit", None):  # If model has an ok attribute, it's valid else not!
+        if getattr(self.model, "allow_submit", None):  # If model has an allow_submit attribute, it's valid else not!
             return True
 
         return False
@@ -132,11 +133,11 @@ class TestWorkflow(TestCase):
 
     def test_is_transition(self):
         self.assertTrue(
-            self.workflow._is_transition("submit")
+            self.workflow.is_transition("submit")
         )
 
         self.assertFalse(
-            self.workflow._is_transition("invalid_transition")
+            self.workflow.is_transition("invalid_transition")
         )
 
     def test_finalize_transition(self):
@@ -171,23 +172,11 @@ class TestWorkflow(TestCase):
 
     def test_after_transition(self):
         self.assertIsNone(
-            self.workflow._after_transition({"name": "reject", "source": "*", "destination": "rejected"})
+            self.workflow._after_transition({"name": "reject", "source": "*", "destination": "rejected"}, None)
         )
 
         self.workflow._after_transition({"name": "submit", "source": "draft", "destination": "submitted"}, None)
         self.assertTrue(self.model.after_submit_called)
-
-    def test_transition_implementation(self):
-        self.assertEqual(
-            self.workflow._transition_implementation({"name": "reject", "source": "*", "destination": "rejected"}),
-            (False, None)
-        )
-
-        self.assertEqual(
-            self.workflow._transition_implementation({"name": "submit", "source": "draft", "destination": "submitted"}),
-            (True, None)
-        )
-        self.assertTrue(self.model.submit_called)
 
     def test_check_transition(self):
         transition_with_check = {"name": "submit", "source": "draft", "destination": "submitted"}
@@ -209,7 +198,7 @@ class TestWorkflow(TestCase):
     def test_execute_transition(self):
         self.model.is_saved = False
 
-        self.workflow._execute_transition("submit")
+        self.workflow.submit()
         self.assertTrue(self.model.on_exit_draft_called)
         self.assertTrue(self.model.before_submit_called)
         self.assertTrue(self.model.submit_called)

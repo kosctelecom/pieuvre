@@ -16,29 +16,9 @@ ON_EXIT_STATE_PREFIX = "on_exit_"
 AFTER_TRANSITION_PREFIX = "after_"
 BEFORE_TRANSITION_PREFIX = "before_"
 CHECK_TRANSITION_PREFIX = "check_"
-TRANSITION_IMPLEMENTATION_PREFIX = "__"
 
 
-def make_transition_implementation_private(dct):
-
-    for transition in dct["transitions"]:
-        transition_name = transition["name"]
-        if transition_name not in dct:
-            continue
-
-        dct["{}{}".format(TRANSITION_IMPLEMENTATION_PREFIX, transition_name)] = dct.pop(transition_name)
-
-    return dct
-
-
-class WorkflowMetaclass(type):
-
-    def __new__(cls, name, bases, dct):
-        dct = make_transition_implementation_private(dct)
-        return type.__new__(cls, name, bases, dct)
-
-
-class Workflow(metaclass=WorkflowMetaclass):
+class Workflow(object):
     """
     Workflow class
 
@@ -149,7 +129,7 @@ class Workflow(metaclass=WorkflowMetaclass):
             return {}
 
     @classmethod
-    def _is_transition(cls, name):
+    def is_transition(cls, name):
         """
         Check if an attribute is a transition
         :param name(string): name of an attribute
@@ -210,7 +190,7 @@ class Workflow(metaclass=WorkflowMetaclass):
         logger.debug("Before transition {}".format(transition["name"]))
         before_transition(*args, **kwargs)
 
-    def _after_transition(self, transition, *args):
+    def _after_transition(self, transition, result):
         """
         Get the function to call after calling the transition
 
@@ -222,33 +202,7 @@ class Workflow(metaclass=WorkflowMetaclass):
             return
 
         logger.debug("After transition {}".format(transition["name"]))
-        after_transition(*args)
-
-    def _transition_implementation(self, transition, *args, **kwargs):
-        """
-        Get the implementation of the transition
-
-        :param state:
-        :return: The function to call or pass_function
-        """
-
-        try:
-            transition_implementation = getattr(
-                self,
-                "{}{}".format(TRANSITION_IMPLEMENTATION_PREFIX, transition["name"])
-            )
-
-            is_implemented = True
-
-        except AttributeError as e:
-            is_implemented = False
-            result = None
-
-        else:
-            logger.debug("Running transition {}".format(transition["name"]))
-            result = transition_implementation(*args, **kwargs)
-
-        return is_implemented, result
+        after_transition(result)
 
     def check_transition_condition(self, transition, *args, **kwargs):
         """
@@ -272,8 +226,43 @@ class Workflow(metaclass=WorkflowMetaclass):
             to_state=transition["destination"]
         )
 
+    def pre_transition(self, name, *args, **kwargs):
+        transition = self._get_transition_by_name(name)
+
+        #  Check if transition is valid
+        self._pre_transition_check(transition)
+
+        #  Check conditions if exist
+        self.check_transition_condition(transition, *args, **kwargs)
+
+        # Call before transition
+        self._before_transition(transition, *args, **kwargs)
+
+        # Call on_exit of the current state
+        self._on_exit_state(self._get_model_state())
+
+    def post_transition(self, name, result, *args, **kwargs):
+
+        transition = self._get_transition_by_name(name)
+
+        # Change state
+        self.update_model_state(transition["destination"])
+
+        self._on_enter_state(transition["destination"])
+
+        self._after_transition(transition, result)
+
+        # save model
+        self.finalize_transition(transition)
+
+        # log in db
+        self.log_db(transition, *args, **kwargs)
+
+        # Create events
+        self.create_events(transition)
+
     @transaction.atomic
-    def _execute_transition(self, name, *args, **kwargs):
+    def default_transition(self, name, *args, **kwargs):
         """
 
         Transition will be executed by following these steps:
@@ -291,48 +280,10 @@ class Workflow(metaclass=WorkflowMetaclass):
         :param name:
         :return:
         """
-        #  TODO handle rollback
+        self.pre_transition(name, *args, **kwargs)
+        self.post_transition(name, None, *args, **kwargs)
 
-        transition = self._get_transition_by_name(name)
-
-        #  Check if transition is valid
-        self._pre_transition_check(transition)
-
-        #  Check conditions if exist
-        self.check_transition_condition(transition, *args, **kwargs)
-
-        # Call before transition
-        self._before_transition(transition, *args, **kwargs)
-
-        # Call on_exit of the current state
-        self._on_exit_state(self._get_model_state())
-
-        # Call the transition if implemented
-        is_implemented, result = self._transition_implementation(transition, *args, **kwargs)
-
-        # Change state
-        self.update_model_state(transition["destination"])
-
-        # Call on_enter of the destination state
-        self._on_enter_state(transition["destination"])
-
-        # Call after transition
-        params = []
-        if is_implemented:
-            params = [result, ]
-
-        self._after_transition(transition, *params)
-
-        # save model
-        self.finalize_transition(transition)
-
-        # log in db
-        self.log_db(transition, *args, **kwargs)
-
-        # Create events
-        self.create_events(transition)
-
-    def run_transition(self, name):
+    def run_transition(self, name, *args, **kwargs):
         """
 
         :param name:
@@ -340,12 +291,16 @@ class Workflow(metaclass=WorkflowMetaclass):
         """
 
         # Check transition
-        if not self._is_transition(name):
+        if not self.is_transition(name):
             raise TransitionDoesNotExist(
                 transition=name
             )
 
-        return self._execute_transition(name)
+        trans = getattr(self, name, None)  # TODO handle the case when the name of the method is different
+        if trans:
+            return trans(*args, **kwargs)
+
+        return self.default_transition(name, *args, **kwargs)
 
     def rollback(self, current_state, target_state, exc):
         self.update_model_state(current_state)
@@ -381,9 +336,34 @@ class Workflow(metaclass=WorkflowMetaclass):
     def __getattr__(self, item):
 
         try:
-            return super().__getattribute__(item)
+            return object.__getattribute__(self, item)
 
         except AttributeError as e:
-            if self._is_transition(item):
-                return partial(self._execute_transition, item)
+            if self.is_transition(item):
+                return partial(self.default_transition, item)
             raise
+
+
+class Transition(object):
+    def __init__(self, name=None):
+        self.name = name
+
+    def get_transition_name(self, func):
+        if self.name:
+            return self.name
+
+        return func.__name__
+
+    @transaction.atomic
+    def __call__(self, func):
+        # Check if it's a valid transition
+        def wrapped_func(workflow, *args, **kwargs):
+            workflow.pre_transition(self.get_transition_name(func), *args, **kwargs)
+
+            result = func(workflow, *args, **kwargs)
+
+            workflow.post_transition(self.get_transition_name(func), result, *args, **kwargs)
+
+            return result
+
+        return wrapped_func
