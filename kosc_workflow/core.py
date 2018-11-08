@@ -345,24 +345,16 @@ class Workflow(object):
 
 
 class Transition(object):
-    def __init__(self, name=None):
-        self.name = name
-
-    def get_transition_name(self, func):
-        if self.name:
-            return self.name
-
-        return func.__name__
 
     @transaction.atomic
     def __call__(self, func):
-        # Check if it's a valid transition
+        #  TODO Check if it's a valid transition
         def wrapped_func(workflow, *args, **kwargs):
-            workflow.pre_transition(self.get_transition_name(func), *args, **kwargs)
+            workflow.pre_transition(func.__name__, *args, **kwargs)
 
             result = func(workflow, *args, **kwargs)
 
-            workflow.post_transition(self.get_transition_name(func), result, *args, **kwargs)
+            workflow.post_transition(func.__name__, result, *args, **kwargs)
 
             return result
 
