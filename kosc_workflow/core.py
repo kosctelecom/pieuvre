@@ -38,7 +38,7 @@ class Workflow(object):
 
     from_any_transition = "*"
     state_field_name = "state"
-    states = None
+    states = []
     transitions = []
     db_logging = False
     db_logging_class = None
@@ -48,10 +48,21 @@ class Workflow(object):
     def __init__(self, model):
 
         self.model = model
+        self._check_initial_state()
+        self.event_managers = [klass(model) for klass in self.get_event_manager_classes()]
 
         super(Workflow, self).__init__()
 
-        self.event_managers = [klass(model) for klass in self.event_manager_classes]
+    def _check_initial_state(self):
+        pass
+
+    def get_event_manager_classes(self):
+        """
+        Return the list of event manager
+
+        :return: list
+        """
+        return self.event_manager_classes
 
     def _get_model_state(self):
         """
@@ -81,7 +92,8 @@ class Workflow(object):
             return
         setattr(self.model, transition["date_field"], now())
 
-    def _check_state(self, state):
+    @classmethod
+    def _check_state(cls, source, state):
         """
 
         Check if the state of the model is the desired state
@@ -89,12 +101,10 @@ class Workflow(object):
         :param state(string): desired state
         :return:
         """
-        if state == self.from_any_transition:
+        if source == cls.from_any_transition:
             return True
 
-        current_state = self._get_model_state()
-
-        return current_state in state if isinstance(state, list) else current_state == state
+        return state in source if isinstance(source, list) else source == state
 
     def _pre_transition_check(self, transition):
         """
@@ -105,7 +115,7 @@ class Workflow(object):
         :raises: InvalidTransition
         """
 
-        if self._check_state(transition["source"]):
+        if self._check_state(transition["source"], self._get_model_state()):
             return
 
         raise InvalidTransition(
@@ -305,8 +315,34 @@ class Workflow(object):
     def rollback(self, current_state, target_state, exc):
         self.update_model_state(current_state)
 
-    def get_available_transitions(self):
+    def get_all_transitions(self):
         pass
+
+    def get_available_transitions(self, state=None):
+        """
+        Get the list of available transitions from a given state,
+        If no state is given, return available transitions from current state
+
+        :param source: str
+        :return:
+        """
+        if not state:
+            state = self._get_model_state()
+
+        return [trans["name"] for trans in self.transitions if self._check_state(trans["source"], state)]
+
+    def get_transition(self, target_state):
+        """
+        Return the transition to call to get to the target state
+        :param target_state: str
+        :return: callable
+        """
+        potential_transitions = set(
+            [trans["name"] for trans in self.transitions if trans["destination"] == target_state]
+        )
+        available_transitions = set([trans["name"] for trans in self.get_available_transitions()])
+        target_transition = potential_transitions.intersection(available_transitions)
+        #  TODO fix me
 
     def log_db(self, transition, *args, **kwargs):
 
@@ -345,7 +381,6 @@ class Workflow(object):
 
 
 class Transition(object):
-
     @transaction.atomic
     def __call__(self, func):
         #  TODO Check if it's a valid transition

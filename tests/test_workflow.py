@@ -101,11 +101,11 @@ class TestWorkflow(TestCase):
         self.assertEqual(self.model.state, "new_state")
 
     def test_check_state(self):
-        self.assertTrue(self.workflow._check_state("draft"))
-        self.assertTrue(self.workflow._check_state("*"))
-        self.assertTrue(self.workflow._check_state(["draft", "completed"]))
-        self.assertFalse(self.workflow._check_state("completed"))
-        self.assertFalse(self.workflow._check_state(["completed", "rejected"]))
+        self.assertTrue(self.workflow._check_state("draft", "draft"))
+        self.assertTrue(self.workflow._check_state("*", "draft"))
+        self.assertTrue(self.workflow._check_state(["draft", "completed"], "draft"))
+        self.assertFalse(self.workflow._check_state("completed", "draft"))
+        self.assertFalse(self.workflow._check_state(["completed", "rejected"], "draft"))
 
     def test_pre_transition_check(self):
         valid_transition = {"name": "submit", "source": "draft", "destination": "submitted"}
