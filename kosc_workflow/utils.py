@@ -1,4 +1,3 @@
-
 import datetime
 import functools
 
@@ -11,6 +10,7 @@ class ContextDecorator(object):
         def decorated(*args, **kwargs):
             with self:
                 return f(*args, **kwargs)
+
         return decorated
 
     def __enter__(self):
