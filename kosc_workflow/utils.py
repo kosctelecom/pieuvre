@@ -29,6 +29,9 @@ class TestAllTransitionsMixin(object):
     transitions = []
     ignore_transitions = []
 
+    def _create_instance(self, state):
+        return self.factory_class(state=state)
+
     def _get_test_transitions(self):
         return [tr for tr in self.transitions if tr["name"] not in self.ignore_transitions]
 
@@ -37,9 +40,9 @@ class TestAllTransitionsMixin(object):
             sources = transition["source"] if isinstance(transition["source"], list) else [transition["source"], ]
 
             for source in sources:
-                order = self.factory_class(state=source)
+                obj = self._create_instance(source)
 
-                getattr(order.workflow, transition["name"])()
+                getattr(obj.workflow, transition["name"])()
 
-                order.refresh_from_db()
-                self.assertEqual(order.state, transition["destination"])
+                obj.refresh_from_db()
+                self.assertEqual(obj.state, transition["destination"])
