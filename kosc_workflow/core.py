@@ -43,6 +43,10 @@ class Workflow(object):
     db_logging = False
     db_logging_class = None
 
+    events = {
+        # "name": "method"
+    }
+
     event_manager_classes = ()
 
     def __init__(self, model):
@@ -52,6 +56,13 @@ class Workflow(object):
         self.event_managers = [klass(model) for klass in self.get_event_manager_classes()]
 
         super(Workflow, self).__init__()
+
+    def process_event(self, name, data):
+        if name not in self.events:
+            return
+
+        func = getattr(self, self.events[name])
+        return func(data)
 
     def _check_initial_state(self):
         pass
