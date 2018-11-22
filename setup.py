@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
+from kosc_workflow import __version__
 
 
 with open('README.rst') as f:
@@ -9,12 +10,10 @@ with open('README.rst') as f:
 with open('LICENSE') as f:
     license = f.read()
 
-with open('VERSION') as f:
-    version = f.read().strip()
 
 setup(
     name='KOSC Workflow',
-    version=version,
+    version=__version__,
     description='KOSC Workflow module',
     long_description=readme,
     author='Said Ben Rjab',

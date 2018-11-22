@@ -6,6 +6,8 @@ from .exceptions import InvalidTransition, ForbiddenTransition, TransitionDoesNo
 from .events import WorkflowEventManager
 from .mixins import WorkflowEnabled
 
+__version__ = "0.0.7"
+
 
 def set_configuration(conf):
     backend = conf.get('backend')
