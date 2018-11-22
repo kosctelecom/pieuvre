@@ -4,7 +4,7 @@ import logging
 from functools import partial
 
 from .utils import transaction, now
-from .exceptions import InvalidTransition, ForbiddenTransition, TransitionDoesNotExist
+from .exceptions import InvalidTransition, ForbiddenTransition, TransitionDoesNotExist, TransitionNotFound
 
 logger = logging.getLogger(__name__)
 
@@ -345,13 +345,15 @@ class Workflow(object):
         :param target_state: str
         :return: callable
         """
-        potential_transitions = [
+        state = self._get_model_state()
+        potential_transition = [
             trans["name"] for trans in self.transitions if trans["destination"] == target_state and
-            trans["name"] in self.get_available_transitions()
+            self._check_state(trans["source"], state)
             ]
 
-        if potential_transitions:
-            return getattr(self, potential_transitions[0])
+        if potential_transition:
+            return getattr(self, potential_transition[0])
+        raise TransitionNotFound(current_state=state, to_state=target_state)
 
     def log_db(self, transition, *args, **kwargs):
 

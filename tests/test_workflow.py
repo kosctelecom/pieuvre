@@ -3,7 +3,8 @@ import uuid
 
 from unittest import TestCase
 
-from kosc_workflow import Workflow, InvalidTransition, TransitionDoesNotExist, ForbiddenTransition, transition
+from kosc_workflow import (Workflow, InvalidTransition, TransitionDoesNotExist, ForbiddenTransition,
+                           TransitionNotFound, transition)
 
 
 class MyOrder(object):
@@ -116,9 +117,9 @@ class TestWorkflow(TestCase):
         with self.assertRaises(InvalidTransition) as e:
             self.workflow._pre_transition_check(invalid_transition)
         e = e.exception
-        self.assertEqual(e.transition, invalid_transition["name"])
-        self.assertEqual(e.current_state, "draft")
-        self.assertEqual(e.to_state, invalid_transition["destination"])
+        self.assertEqual(e.kwargs['transition'], invalid_transition["name"])
+        self.assertEqual(e.kwargs['current_state'], "draft")
+        self.assertEqual(e.kwargs['to_state'], invalid_transition["destination"])
 
     def test_get_transition_by_name(self):
         self.assertEqual(
@@ -191,9 +192,9 @@ class TestWorkflow(TestCase):
         with self.assertRaises(ForbiddenTransition) as e:
             self.workflow.check_transition_condition(transition_with_check)
         e = e.exception
-        self.assertEqual(e.transition, transition_with_check["name"])
-        self.assertEqual(e.current_state, "draft")
-        self.assertEqual(e.to_state, transition_with_check["destination"])
+        self.assertEqual(e.kwargs['transition'], transition_with_check["name"])
+        self.assertEqual(e.kwargs['current_state'], "draft")
+        self.assertEqual(e.kwargs['to_state'], transition_with_check["destination"])
 
     def test_execute_transition(self):
         self.model.is_saved = False
@@ -212,7 +213,7 @@ class TestWorkflow(TestCase):
         with self.assertRaises(TransitionDoesNotExist) as e:
             self.workflow.run_transition("does_not_exist")
         e = e.exception
-        self.assertEqual(e.transition, "does_not_exist")
+        self.assertEqual(e.kwargs['transition'], "does_not_exist")
 
         self.workflow.run_transition("reject")
         self.assertEqual(self.model.state, "rejected")
@@ -226,6 +227,6 @@ class TestWorkflow(TestCase):
             self.workflow.get_transition("submitted"),
             self.workflow.submit
         )
-        self.assertIsNone(
+        with self.assertRaises(TransitionNotFound) as e:
             self.workflow.get_transition("completed")
-        )
+        self.assertEqual(str(e.exception), 'Transition not found from draft to completed')

@@ -9,19 +9,11 @@ class WorkflowBaseError(Exception):
     """
     message = "Error {transition}: {current_state} -> {to_state}"
 
-    def __init__(self, transition, current_state=None, to_state=None):
-
-        self.transition = transition
-        self.current_state = current_state
-        self.to_state = to_state
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
 
     def __str__(self):
-
-        return self.message.format(
-            transition=self.transition,
-            current_state=self.current_state,
-            to_state=self.to_state
-        )
+        return self.message.format(**self.kwargs)
 
 
 class InvalidTransition(WorkflowBaseError):
@@ -43,3 +35,7 @@ class TransitionDoesNotExist(WorkflowBaseError):
     Raise when condition is not valid to perform the transition
     """
     message = "Transition {transition} does not exist"
+
+
+class TransitionNotFound(WorkflowBaseError):
+    message = "Transition not found from {current_state} to {to_state}"
