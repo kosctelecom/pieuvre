@@ -220,3 +220,12 @@ class TestWorkflow(TestCase):
     def test_log_db(self):
 
         pass
+
+    def test_get_transition(self):
+        self.assertEqual(
+            self.workflow.get_transition("submitted"),
+            self.workflow.submit
+        )
+        self.assertIsNone(
+            self.workflow.get_transition("completed")
+        )

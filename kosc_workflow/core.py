@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import unicode_literals
 
 import logging
 
@@ -348,12 +345,13 @@ class Workflow(object):
         :param target_state: str
         :return: callable
         """
-        potential_transitions = set(
-            [trans["name"] for trans in self.transitions if trans["destination"] == target_state]
-        )
-        available_transitions = set([trans["name"] for trans in self.get_available_transitions()])
-        target_transition = potential_transitions.intersection(available_transitions)
-        #  TODO fix me
+        potential_transitions = [
+            trans["name"] for trans in self.transitions if trans["destination"] == target_state and
+            trans["name"] in self.get_available_transitions()
+            ]
+
+        if potential_transitions:
+            return getattr(self, potential_transitions[0])
 
     def log_db(self, transition, *args, **kwargs):
 
