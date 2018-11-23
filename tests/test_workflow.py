@@ -230,3 +230,23 @@ class TestWorkflow(TestCase):
         with self.assertRaises(TransitionNotFound) as e:
             self.workflow.get_transition("completed")
         self.assertEqual(str(e.exception), 'Transition not found from draft to completed')
+
+    def test_get_next_available_states(self):
+        self.assertEqual(
+            self.workflow.get_next_available_states(),
+            [
+                {
+                    "state": "submitted",
+                    "label": None
+                },
+                {
+                    "state": "rejected",
+                    "label": None
+                }
+            ]
+        )
+
+        self.assertEqual(
+            self.workflow.get_next_available_states("completed"),
+            [{"state": "rejected", "label": None}]
+        )

@@ -334,10 +334,26 @@ class Workflow(object):
         :param source: str
         :return:
         """
-        if not state:
-            state = self._get_model_state()
 
-        return [trans["name"] for trans in self.transitions if self._check_state(trans["source"], state)]
+        state = state or self._get_model_state()
+
+        return [trans for trans in self.transitions if self._check_state(trans["source"], state)]
+
+    def get_next_available_states(self, state=None):
+        """
+        Return the list of available next states from a given state
+        If no state is given, the current state will be used
+        :param state:
+        :return: list
+        """
+        state = state or self._get_model_state()
+
+        return [
+            {
+                "state": trans["destination"],
+                "label": trans.get("label")
+            } for trans in self.get_available_transitions(state)
+        ]
 
     def get_transition(self, target_state):
         """
