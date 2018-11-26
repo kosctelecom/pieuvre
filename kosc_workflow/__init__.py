@@ -6,7 +6,7 @@ from .exceptions import InvalidTransition, ForbiddenTransition, TransitionDoesNo
 from .events import WorkflowEventManager
 from .mixins import WorkflowEnabled
 
-__version__ = "0.0.9"
+__version__ = "0.0.10"
 
 
 def set_configuration(conf):

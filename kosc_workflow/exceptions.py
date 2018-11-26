@@ -39,3 +39,15 @@ class TransitionDoesNotExist(WorkflowBaseError):
 
 class TransitionNotFound(WorkflowBaseError):
     message = "Transition not found from {current_state} to {to_state}"
+
+
+class WorkflowValidationError(WorkflowBaseError):
+
+    message = "Workflow validation failed"
+
+    def __init__(self, errors=None, **kwargs):
+        self.errors = errors
+        super(WorkflowValidationError, self).__init__(**kwargs)
+
+    def get_errors(self):
+        return self.errors or []
