@@ -72,11 +72,11 @@ class MyWorkflow(Workflow):
         # To test later if this implementation is called
         setattr(self.model, "after_submit_called", True)
 
-    def on_enter_submitted(self):
+    def on_enter_submitted(self, transition):
         # To test later if this implementation is called
         setattr(self.model, "on_enter_submitted_called", True)
 
-    def on_exit_draft(self):
+    def on_exit_draft(self, transition):
         # To test later if this implementation is called
         setattr(self.model, "on_exit_draft_called", True)
 
@@ -149,18 +149,18 @@ class TestWorkflow(TestCase):
 
     def test_on_enter_state(self):
         self.assertIsNone(
-            self.workflow._on_enter_state("rejected")
+            self.workflow._on_enter_state({"name": "reject", "source": "*", "destination": "rejected"})
         )
 
-        self.workflow._on_enter_state("submitted")
+        self.workflow._on_enter_state({"name": "submit", "source": "draft", "destination": "submitted"})
         self.assertTrue(self.model.on_enter_submitted_called)
 
     def test_on_exit_state(self):
         self.assertIsNone(
-            self.workflow._on_exit_state("rejected")
+            self.workflow._on_exit_state({"name": "reject", "source": "*", "destination": "rejected"})
         )
 
-        self.workflow._on_exit_state("draft")
+        self.workflow._on_exit_state({"name": "submit", "source": "draft", "destination": "submitted"})
         self.assertTrue(self.model.on_exit_draft_called)
 
     def test_before_transition(self):

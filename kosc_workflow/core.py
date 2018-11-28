@@ -164,34 +164,38 @@ class Workflow(object):
         logger.debug("Saving model.")
         self.model.save()
 
-    def _on_enter_state(self, state):
+    def _on_enter_state(self, transition):
         """
         Get the function to call after entering the desired state
 
-        :param state:
+        :param transition:
         :return: The function to call or pass_function
         """
+        state = transition["destination"]
+
         on_enter_state = getattr(self, "{}{}".format(ON_ENTER_STATE_PREFIX, state), None)
 
         if not on_enter_state:
             return
 
         logger.debug("Entering {} {}".format(self.state_field_name, state))
-        on_enter_state()
+        on_enter_state(transition)
 
-    def _on_exit_state(self, state):
+    def _on_exit_state(self, transition):
         """
         Get the function to call after leaving the desired state
 
-        :param state:
+        :param transition:
         :return: The function to call or pass_function
         """
+        state = self._get_model_state()
+
         on_exit_state = getattr(self, "{}{}".format(ON_EXIT_STATE_PREFIX, state), None)
         if not on_exit_state:
             return
 
         logger.debug("Leaving {} {}".format(self.state_field_name, state))
-        on_exit_state()
+        on_exit_state(transition)
 
     def _before_transition(self, transition, *args, **kwargs):
         """
@@ -231,6 +235,7 @@ class Workflow(object):
         :raises ForbiddenTransition
 
         """
+
         check_function = getattr(self, "{}{}".format(CHECK_TRANSITION_PREFIX, transition["name"]), None)
         if not check_function:
             return
@@ -257,7 +262,7 @@ class Workflow(object):
         self._before_transition(transition, *args, **kwargs)
 
         # Call on_exit of the current state
-        self._on_exit_state(self._get_model_state())
+        self._on_exit_state(transition)
 
     def post_transition(self, name, result, *args, **kwargs):
 
@@ -266,7 +271,7 @@ class Workflow(object):
         # Change state
         self.update_model_state(transition["destination"])
 
-        self._on_enter_state(transition["destination"])
+        self._on_enter_state(transition)
 
         self._after_transition(transition, result)
 
