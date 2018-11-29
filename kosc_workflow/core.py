@@ -69,8 +69,8 @@ class Workflow(object):
         Construct _on_enter_state_checks and _on_exit_state_checks
         """
 
-        self.__on_enter_state_checks = {}
-        self.__on_exit_state_checks = {}
+        self._on_enter_state_checks = {}
+        self._on_exit_state_checks = {}
 
         for attr in dir(self):
             if attr.startswith("__"):
@@ -81,10 +81,10 @@ class Workflow(object):
                 continue
 
             if hasattr(func, "_on_enter_state"):
-                update_check_function(self.__on_enter_state_checks, func._on_enter_state, func)
+                update_check_function(self._on_enter_state_checks, func._on_enter_state, func)
 
             if hasattr(func, "_on_exit_state"):
-                update_check_function(self.__on_exit_state_checks, func._on_exit_state, func)
+                update_check_function(self._on_exit_state_checks, func._on_exit_state, func)
 
     def process_event(self, name, data):
         if name not in self.events:
@@ -259,11 +259,11 @@ class Workflow(object):
         after_transition(result)
 
     def _check_on_enter_state(self, state):
-        return all([func() for func in self.__on_enter_state_checks.get(state, [])])
+        return all([func() for func in self._on_enter_state_checks.get(state, [])])
 
     def _check_on_exit_state(self, state):
 
-        return all([func() for func in self.__on_exit_state_checks.get(state, [])])
+        return all([func() for func in self._on_exit_state_checks.get(state, [])])
 
     def check_transition_condition(self, transition, *args, **kwargs):
         """
