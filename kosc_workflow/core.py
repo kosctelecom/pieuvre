@@ -15,44 +15,16 @@ BEFORE_TRANSITION_PREFIX = "before_"
 CHECK_TRANSITION_PREFIX = "check_"
 
 
-class WorkflowMetaClass(type):
+def update_check_function(obj, states, function):
 
-    def __new__(cls, name, bases, dikt):
-
-        klass = super().__new__(cls, name, bases, dikt)
-
-        cls.construct_check_functions(klass, dikt)
-        return klass
-
-    @classmethod
-    def construct_check_functions(cls, klass, dikt):
-        """
-        Construct _on_enter_state_checks and _on_exit_state_checks
-        """
-        if not hasattr(klass, "_on_enter_state_checks"):
-            setattr(klass, "_on_enter_state_checks", {})
-
-        if not hasattr(klass, "_on_exit_state_checks"):
-            setattr(klass, "_on_exit_state_checks", {})
-
-        for attr, value in dikt.items():
-
-            if hasattr(value, "_on_enter_state"):
-                cls.update_check_function(klass._on_enter_state_checks, value._on_enter_state, attr)
-
-            if hasattr(value, "_on_exit_state"):
-                cls.update_check_function(klass._on_exit_state_checks, value._on_exit_state, attr)
-
-    @classmethod
-    def update_check_function(cls, obj, states, function):
-        for state in states:
-            if state in obj:
-                obj[state].append(function)
-            else:
-                obj[state] = [function, ]
+    for state in states:
+        if state in obj:
+            obj[state].append(function)
+        else:
+            obj[state] = [function, ]
 
 
-class Workflow(metaclass=WorkflowMetaClass):
+class Workflow(object):
     """
     Workflow class
 
@@ -90,6 +62,29 @@ class Workflow(metaclass=WorkflowMetaClass):
         self.event_managers = [klass(model) for klass in self.get_event_manager_classes()]
 
         super(Workflow, self).__init__()
+        self.construct_check_functions()
+
+    def construct_check_functions(self):
+        """
+        Construct _on_enter_state_checks and _on_exit_state_checks
+        """
+
+        self.__on_enter_state_checks = {}
+        self.__on_exit_state_checks = {}
+
+        for attr in dir(self):
+            if attr.startswith("__"):
+                continue
+
+            func = getattr(self, attr)
+            if not callable(func):
+                continue
+
+            if hasattr(func, "_on_enter_state"):
+                update_check_function(self.__on_enter_state_checks, func._on_enter_state, func)
+
+            if hasattr(func, "_on_exit_state"):
+                update_check_function(self.__on_exit_state_checks, func._on_exit_state, func)
 
     def process_event(self, name, data):
         if name not in self.events:
@@ -264,12 +259,11 @@ class Workflow(metaclass=WorkflowMetaClass):
         after_transition(result)
 
     def _check_on_enter_state(self, state):
-        check_functions = [getattr(self, name) for name in self._on_enter_state_checks.get(state, [])]
-        return all([func() for func in check_functions])
+        return all([func() for func in self.__on_enter_state_checks.get(state, [])])
 
     def _check_on_exit_state(self, state):
-        check_functions = [getattr(self, name) for name in self._on_exit_state_checks.get(state, [])]
-        return all([func() for func in check_functions])
+
+        return all([func() for func in self.__on_exit_state_checks.get(state, [])])
 
     def check_transition_condition(self, transition, *args, **kwargs):
         """
