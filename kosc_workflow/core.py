@@ -15,7 +15,44 @@ BEFORE_TRANSITION_PREFIX = "before_"
 CHECK_TRANSITION_PREFIX = "check_"
 
 
-class Workflow(object):
+class WorkflowMetaClass(type):
+
+    def __new__(cls, name, bases, dikt):
+
+        klass = super().__new__(cls, name, bases, dikt)
+
+        cls.construct_check_functions(klass, dikt)
+        return klass
+
+    @classmethod
+    def construct_check_functions(cls, klass, dikt):
+        """
+        Construct _on_enter_state_checks and _on_exit_state_checks
+        """
+        if not hasattr(klass, "_on_enter_state_checks"):
+            setattr(klass, "_on_enter_state_checks", {})
+
+        if not hasattr(klass, "_on_exit_state_checks"):
+            setattr(klass, "_on_exit_state_checks", {})
+
+        for attr, value in dikt.items():
+
+            if hasattr(value, "_on_enter_state"):
+                cls.update_check_function(klass._on_enter_state_checks, value._on_enter_state, attr)
+
+            if hasattr(value, "_on_exit_state"):
+                cls.update_check_function(klass._on_exit_state_checks, value._on_exit_state, attr)
+
+    @classmethod
+    def update_check_function(cls, obj, states, function):
+        for state in states:
+            if state in obj:
+                obj[state].append(function)
+            else:
+                obj[state] = [function, ]
+
+
+class Workflow(metaclass=WorkflowMetaClass):
     """
     Workflow class
 
@@ -226,21 +263,34 @@ class Workflow(object):
         logger.debug("After transition {}".format(transition["name"]))
         after_transition(result)
 
+    def _check_on_enter_state(self, state):
+        check_functions = [getattr(self, name) for name in self._on_enter_state_checks.get(state, [])]
+        return all([func() for func in check_functions])
+
+    def _check_on_exit_state(self, state):
+        check_functions = [getattr(self, name) for name in self._on_exit_state_checks.get(state, [])]
+        return all([func() for func in check_functions])
+
     def check_transition_condition(self, transition, *args, **kwargs):
         """
         Call condition function.
+        Call entering new state conditions
+        Call exiting old state conditions
 
         :param transition(dict): desired transition
         :return: None
         :raises ForbiddenTransition
 
         """
+        valid_transition = True
+        check_transition_function = getattr(self, "{}{}".format(CHECK_TRANSITION_PREFIX, transition["name"]), None)
 
-        check_function = getattr(self, "{}{}".format(CHECK_TRANSITION_PREFIX, transition["name"]), None)
-        if not check_function:
-            return
+        if check_transition_function and not check_transition_function(*args, **kwargs):
+            valid_transition = False
 
-        if check_function(*args, **kwargs):
+        if valid_transition \
+                and self._check_on_enter_state(transition["destination"]) \
+                and self._check_on_exit_state(self._get_model_state()):
             return
 
         raise ForbiddenTransition(
@@ -267,7 +317,7 @@ class Workflow(object):
     def post_transition(self, name, result, *args, **kwargs):
 
         transition = self._get_transition_by_name(name)
-
+        source = self._get_model_state()
         # Change state
         self.update_model_state(transition["destination"])
 
@@ -279,10 +329,13 @@ class Workflow(object):
         self.finalize_transition(transition)
 
         # log in db
-        self.log_db(transition, *args, **kwargs)
+        # transition can be from a specific state or from a list of states or from any state
+        # for logging we send the exact source state
+        _transition = dict(transition, source=source)
+        self.log_db(_transition, *args, **kwargs)
 
         # Create events
-        self.create_events(transition)
+        self.create_events(_transition)
 
     @transaction.atomic
     def default_transition(self, name, *args, **kwargs):
@@ -426,3 +479,26 @@ class Transition(object):
             return result
 
         return wrapped_func
+
+
+class StateCheckBaseDecorator(object):
+
+    check_type = None
+
+    def __init__(self, state):
+        self.states = state if isinstance(state, list) else [state, ]
+        super(StateCheckBaseDecorator, self).__init__()
+
+    def __call__(self, func):
+
+        setattr(func, self.check_type, self.states)
+
+        return func
+
+
+class OnEnterStateCheck(StateCheckBaseDecorator):
+    check_type = "_on_enter_state"
+
+
+class OnExitStateCheck(StateCheckBaseDecorator):
+    check_type = "_on_exit_state"

@@ -4,7 +4,7 @@ import uuid
 from unittest import TestCase
 
 from kosc_workflow import (Workflow, InvalidTransition, TransitionDoesNotExist, ForbiddenTransition,
-                           TransitionNotFound, transition)
+                           TransitionNotFound, transition, on_enter_state_check, on_exit_state_check)
 
 
 class MyOrder(object):
@@ -21,6 +21,8 @@ class MyOrder(object):
         self.is_saved = True
         self._state = state
         self.allow_submit = True
+        self.allow_leaving_draft_state = True
+        self.allow_entering_submitted_state = True
 
     @property
     def state(self):
@@ -81,10 +83,19 @@ class MyWorkflow(Workflow):
         setattr(self.model, "on_exit_draft_called", True)
 
     def check_submit(self):
-        if getattr(self.model, "allow_submit", None):  # If model has an allow_submit attribute, it's valid else not!
-            return True
+        return self.model.allow_submit
 
-        return False
+    @on_exit_state_check("draft")
+    def check_leaving_draft(self):
+        return self.model.allow_leaving_draft_state
+
+    @on_enter_state_check("submitted")
+    def check_entering_submitted(self):
+        return self.model.allow_entering_submitted_state
+
+    @on_enter_state_check("submitted")
+    def another_submitted_check(self):
+        return True
 
 
 class TestWorkflow(TestCase):
