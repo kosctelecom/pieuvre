@@ -112,6 +112,10 @@ class Workflow(object):
 
         return getattr(self.model, self.state_field_name)
 
+    @property
+    def state(self):
+        return self._get_model_state()
+
     def update_model_state(self, value):
         """
         Update the state of the model
