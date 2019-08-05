@@ -3,8 +3,13 @@ import logging
 
 from functools import partial
 
+from .exceptions import (
+    ForbiddenTransition,
+    InvalidTransition,
+    TransitionDoesNotExist,
+    TransitionNotFound
+)
 from .utils import transaction, now
-from .exceptions import InvalidTransition, ForbiddenTransition, TransitionDoesNotExist, TransitionNotFound
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +35,25 @@ class Workflow(object):
 
     Attributes:
         initial_state(string): initial state of the model
-        states(list): The list of states, it can be a list of strings or dicts or a mix of them
+        states(list): The list of states, it can be a list of strings or dicts
+                      or a mix of them
             Example:
                 states = ["draft", "submitted", "completed", "rejected"]
 
         transitions(list): List of transitions:
             Example:
                 transitions = [
-                    {"name": "submit", "source": "draft", "destination": "submitted", "date_field": "submission_date"},
-                    {"name": "complete", "source": "submitted", "destination": "completed"}
+                    {
+                        "name": "submit",
+                        "source": "draft",
+                        "destination": "submitted",
+                        "date_field": "submission_date"
+                    },
+                    {
+                        "name": "complete",
+                        "source": "submitted",
+                        "destination": "completed"
+                    }
                 ]
     """
 
@@ -81,10 +96,16 @@ class Workflow(object):
                 continue
 
             if hasattr(func, "_on_enter_state"):
-                update_check_function(self._on_enter_state_checks, func._on_enter_state, func)
+                update_check_function(
+                    self._on_enter_state_checks,
+                    func._on_enter_state,
+                    func)
 
             if hasattr(func, "_on_exit_state"):
-                update_check_function(self._on_exit_state_checks, func._on_exit_state, func)
+                update_check_function(
+                    self._on_exit_state_checks,
+                    func._on_exit_state,
+                    func)
 
     def process_event(self, name, data):
         if name not in self.events:
@@ -122,7 +143,8 @@ class Workflow(object):
         :param value(string): the value of the state to be updated
         :return: None
         """
-        logger.debug("Updating model {} to {}".format(self.state_field_name, value))
+        logger.debug("Updating model {} to {}".format(
+            self.state_field_name, value))
 
         setattr(self.model, self.state_field_name, value)
 
@@ -209,7 +231,8 @@ class Workflow(object):
         """
         state = transition["destination"]
 
-        on_enter_state = getattr(self, "{}{}".format(ON_ENTER_STATE_PREFIX, state), None)
+        on_enter_state = getattr(self, "{}{}".format(
+            ON_ENTER_STATE_PREFIX, state), None)
 
         if not on_enter_state:
             return
@@ -226,7 +249,8 @@ class Workflow(object):
         """
         state = self._get_model_state()
 
-        on_exit_state = getattr(self, "{}{}".format(ON_EXIT_STATE_PREFIX, state), None)
+        on_exit_state = getattr(self, "{}{}".format(
+            ON_EXIT_STATE_PREFIX, state), None)
         if not on_exit_state:
             return
 
@@ -241,7 +265,8 @@ class Workflow(object):
         :return: The function to call or pass_function
         """
 
-        before_transition = getattr(self, "{}{}".format(BEFORE_TRANSITION_PREFIX, transition["name"]), None)
+        before_transition = getattr(self, "{}{}".format(
+            BEFORE_TRANSITION_PREFIX, transition["name"]), None)
         if not before_transition:
             return
 
@@ -255,7 +280,8 @@ class Workflow(object):
         :param state:
         :return: The function to call or pass_function
         """
-        after_transition = getattr(self, "{}{}".format(AFTER_TRANSITION_PREFIX, transition["name"]), None)
+        after_transition = getattr(self, "{}{}".format(
+            AFTER_TRANSITION_PREFIX, transition["name"]), None)
         if not after_transition:
             return
 
@@ -266,7 +292,6 @@ class Workflow(object):
         return all([func() for func in self._on_enter_state_checks.get(state, [])])
 
     def _check_on_exit_state(self, state):
-
         return all([func() for func in self._on_exit_state_checks.get(state, [])])
 
     def check_transition_condition(self, transition, *args, **kwargs):
@@ -281,7 +306,8 @@ class Workflow(object):
 
         """
         valid_transition = True
-        check_transition_function = getattr(self, "{}{}".format(CHECK_TRANSITION_PREFIX, transition["name"]), None)
+        check_transition_function = getattr(self, "{}{}".format(
+            CHECK_TRANSITION_PREFIX, transition["name"]), None)
 
         if check_transition_function and not check_transition_function(*args, **kwargs):
             valid_transition = False
@@ -327,8 +353,8 @@ class Workflow(object):
         self.finalize_transition(transition)
 
         # log in db
-        # transition can be from a specific state or from a list of states or from any state
-        # for logging we send the exact source state
+        # transition can be from a specific state or from a list of states or
+        # from any state for logging we send the exact source state
         _transition = dict(transition, source=source)
         self.log_db(_transition, *args, **kwargs)
 
@@ -370,7 +396,8 @@ class Workflow(object):
                 transition=name
             )
 
-        trans = getattr(self, name, None)  # TODO handle the case when the name of the method is different
+        # TODO handle the case when the name of the method is different
+        trans = getattr(self, name, None)
         if trans:
             return trans(*args, **kwargs)
 
@@ -393,7 +420,8 @@ class Workflow(object):
 
         state = state or self._get_model_state()
 
-        return [trans for trans in self.transitions if self._check_state(trans["source"], state)]
+        return [trans for trans in self.transitions if self._check_state(
+            trans["source"], state)]
 
     def get_next_available_states(self, state=None):
         """
@@ -457,7 +485,7 @@ class Workflow(object):
         try:
             return object.__getattribute__(self, item)
 
-        except AttributeError as e:
+        except AttributeError:
             if self.is_transition(item):
                 return partial(self.default_transition, item)
             raise
@@ -485,12 +513,10 @@ class StateCheckBaseDecorator(object):
 
     def __init__(self, state):
         self.states = state if isinstance(state, list) else [state, ]
-        super(StateCheckBaseDecorator, self).__init__()
+        super().__init__()
 
     def __call__(self, func):
-
         setattr(func, self.check_type, self.states)
-
         return func
 
 
