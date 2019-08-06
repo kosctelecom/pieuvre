@@ -1,0 +1,3 @@
+[submodule "toolbox"]
+	path = toolbox
+	url = git@gitlab.kosc.net:platform/toolbox.git

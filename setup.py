@@ -1,27 +1,22 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
-from kosc_workflow import __version__
 
-
-with open('README.rst') as f:
-    readme = f.read()
-
-with open('LICENSE') as f:
-    license = f.read()
+from toolbox.utils.python_setup import *
 
 
 setup(
-    name='KOSC Workflow',
-    version=__version__,
+    name='kosc_workflow',
+    version=VERSION,
     description='KOSC Workflow module',
-    long_description=readme,
+    long_description=README,
     author='Said Ben Rjab',
     author_email='said.benrjab@kosc-telecom.fr',
-    url='https://gitlab.kosc-telecom.fr/gitlab/said.benrjab/kosc_workflow',
+    url='http://gitlab.kosc-telecom.fr/gitlab/tools/kosc_workflow.git',
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
-    install_requires=[
-        "wheel",
-    ]
+    install_requires=requirements,
+    setup_requires=setup_requirements,
+    test_suite='tests',
+    tests_require=test_requirements,
 )
