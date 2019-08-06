@@ -9,7 +9,11 @@ from .exceptions import (
     TransitionDoesNotExist,
     TransitionNotFound
 )
-from .utils import transaction, now
+try:
+    from django.db import transaction
+    from django.utils.timezone import now
+except ImportError:
+    from .utils import transaction, now
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +24,7 @@ BEFORE_TRANSITION_PREFIX = "before_"
 CHECK_TRANSITION_PREFIX = "check_"
 
 
-def update_check_function(obj, states, function):
+def update_decorated_functions(obj, states, function):
 
     for state in states:
         if state in obj:
@@ -77,15 +81,18 @@ class Workflow(object):
         self.event_managers = [klass(model) for klass in self.get_event_manager_classes()]
 
         super(Workflow, self).__init__()
-        self.construct_check_functions()
 
-    def construct_check_functions(self):
+        self._on_enter_state_check = {}
+        self._on_exit_state_check = {}
+        self._on_enter_state_hook = {}
+        self._on_exit_state_hook = {}
+
+        self.gather_decorated_functions()
+
+    def gather_decorated_functions(self):
         """
         Construct _on_enter_state_checks and _on_exit_state_checks
         """
-
-        self._on_enter_state_checks = {}
-        self._on_exit_state_checks = {}
 
         for attr in dir(self):
             if attr.startswith("__"):
@@ -95,17 +102,14 @@ class Workflow(object):
             if not callable(func):
                 continue
 
-            if hasattr(func, "_on_enter_state"):
-                update_check_function(
-                    self._on_enter_state_checks,
-                    func._on_enter_state,
-                    func)
+            for deco in ("_on_enter_state_check", "_on_exit_state_check", "_on_enter_state_hook",
+                         "_on_exit_state_hook"):
 
-            if hasattr(func, "_on_exit_state"):
-                update_check_function(
-                    self._on_exit_state_checks,
-                    func._on_exit_state,
-                    func)
+                if hasattr(func, deco):
+                    update_decorated_functions(
+                        getattr(self, deco),
+                        getattr(func, deco),
+                        func)
 
     def process_event(self, name, data):
         if name not in self.events:
@@ -230,15 +234,16 @@ class Workflow(object):
         :return: The function to call or pass_function
         """
         state = transition["destination"]
-
-        on_enter_state = getattr(self, "{}{}".format(
+        functions = self._on_enter_state_hook.get(state, [])
+        _on_enter_state = getattr(self, "{}{}".format(
             ON_ENTER_STATE_PREFIX, state), None)
 
-        if not on_enter_state:
-            return
+        if _on_enter_state:
+            functions.append(_on_enter_state)
 
         logger.debug("Entering {} {}".format(self.state_field_name, state))
-        on_enter_state(transition)
+        for func in functions:
+            func(transition)
 
     def _on_exit_state(self, transition):
         """
@@ -248,14 +253,15 @@ class Workflow(object):
         :return: The function to call or pass_function
         """
         state = self._get_model_state()
-
-        on_exit_state = getattr(self, "{}{}".format(
+        functions = self._on_exit_state_hook.get(state, [])
+        _on_exit_state = getattr(self, "{}{}".format(
             ON_EXIT_STATE_PREFIX, state), None)
-        if not on_exit_state:
-            return
+        if _on_exit_state:
+            functions.append(_on_exit_state)
 
         logger.debug("Leaving {} {}".format(self.state_field_name, state))
-        on_exit_state(transition)
+        for func in functions:
+            func(transition)
 
     def _before_transition(self, transition, *args, **kwargs):
         """
@@ -289,10 +295,10 @@ class Workflow(object):
         after_transition(result)
 
     def _check_on_enter_state(self, state):
-        return all([func() for func in self._on_enter_state_checks.get(state, [])])
+        return all([func() for func in self._on_enter_state_check.get(state, [])])
 
     def _check_on_exit_state(self, state):
-        return all([func() for func in self._on_exit_state_checks.get(state, [])])
+        return all([func() for func in self._on_exit_state_check.get(state, [])])
 
     def check_transition_condition(self, transition, *args, **kwargs):
         """
@@ -507,22 +513,30 @@ class Transition(object):
         return wrapped_func
 
 
-class StateCheckBaseDecorator(object):
+class BaseDecorator(object):
 
-    check_type = None
+    type = None
 
     def __init__(self, state):
         self.states = state if isinstance(state, list) else [state, ]
         super().__init__()
 
     def __call__(self, func):
-        setattr(func, self.check_type, self.states)
+        setattr(func, self.type, self.states)
         return func
 
 
-class OnEnterStateCheck(StateCheckBaseDecorator):
-    check_type = "_on_enter_state"
+class OnEnterStateCheck(BaseDecorator):
+    type = "_on_enter_state_check"
 
 
-class OnExitStateCheck(StateCheckBaseDecorator):
-    check_type = "_on_exit_state"
+class OnExitStateCheck(BaseDecorator):
+    type = "_on_exit_state_check"
+
+
+class OnEnterState(BaseDecorator):
+    type = "_on_enter_state_hook"
+
+
+class OnExitState(BaseDecorator):
+    type = "_on_exit_state_hook"
