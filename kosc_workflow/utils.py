@@ -42,7 +42,10 @@ class TestAllTransitionsMixin(object):
             for source in sources:
                 obj = self._create_instance(source)
 
+                # Make sure the transition can execute
                 getattr(obj.workflow, transition["name"])()
 
-                obj.refresh_from_db()
-                self.assertEqual(obj.state, transition["destination"])
+                # There are no guarantee that obj.state is equal to transition["destination"]
+                # Because the transition could trigger other transitions (that could even lead
+                # back to the initial state).
+                # Hence there is no point in checking the object state.
