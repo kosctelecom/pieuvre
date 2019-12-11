@@ -498,9 +498,9 @@ class Workflow(object):
 
 
 class Transition(object):
-    @transaction.atomic
     def __call__(self, func):
         #  TODO Check if it's a valid transition
+        @transaction.atomic
         def wrapped_func(workflow, *args, **kwargs):
             workflow.pre_transition(func.__name__, *args, **kwargs)
 
