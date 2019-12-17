@@ -9,11 +9,18 @@ from .exceptions import (
     TransitionDoesNotExist,
     TransitionNotFound
 )
+
 try:
     from django.db import transaction
     from django.utils.timezone import now
 except ImportError:
+    # Fallback if Django is not installed
     from .utils import transaction, now
+
+try:
+    import pydot
+except ImportError:
+    pydot = None
 
 logger = logging.getLogger(__name__)
 
@@ -413,7 +420,7 @@ class Workflow(object):
         self.update_model_state(current_state)
 
     def get_all_transitions(self):
-        pass
+        return self.transitions
 
     def get_available_transitions(self, state=None):
         """
@@ -458,7 +465,9 @@ class Workflow(object):
             ]
 
         if potential_transition:
+            # Return first transition
             return getattr(self, potential_transition[0])
+
         raise TransitionNotFound(current_state=state, to_state=target_state)
 
     def log_db(self, transition, *args, **kwargs):
@@ -495,6 +504,35 @@ class Workflow(object):
             if self.is_transition(item):
                 return partial(self.default_transition, item)
             raise
+
+    @classmethod
+    def generate_graph(cls, dpi=150, edges_conf={}):
+        """
+        This method generates a Graphviz visualisation of a workflow,
+        if pydot is installed and there is at least one transition.
+        """
+        if pydot is None:
+            return None
+
+        graph = pydot.Dot(graph_type="digraph", dpi=dpi)
+        is_empty = True
+
+        for trans in cls.transitions:
+            sources = trans["source"]
+            if not isinstance(sources, list):
+                sources = [sources]
+
+            for source in sources:
+                is_empty = False
+                edge = pydot.Edge(
+                    source,
+                    trans["destination"],
+                    label=trans["name"],
+                    **edges_conf)
+                graph.add_edge(edge)
+
+        if not is_empty:
+            return graph
 
 
 class Transition(object):
