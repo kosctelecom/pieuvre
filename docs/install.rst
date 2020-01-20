@@ -12,10 +12,10 @@ Manual set-up
 Via Pypi
 ~~~~~~~~
 
-As of November 2018, the Pypi server is: ::
+As of January 2020, the Pypi server is: ::
 
-    export DEVPY_SERVER=192.168.13.10
+    export DEVPY_SERVER=packages.kosc.net
 
 `kosc-workflow` can then be installed with: ::
 
-    pip install kosc_workflow -i http://${DEVPY_SERVER}/devpi/packages/stable/+simple/ --trusted-host ${DEVPY_SERVER}
+    pip install kosc_workflow -i http://${DEVPY_SERVER}/packages/stable/+simple/ 
