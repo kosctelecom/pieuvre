@@ -18,7 +18,7 @@ extras_require = {
     ],
     "test": [
         "pycodestyle",
-        "pytest==4.0.2",
+        "pytest==5.3.5",
         "pytest-cov"
     ]
 }

@@ -12,19 +12,19 @@ Pieuvre is a simple yet powerful workflow engine library developed by [Kosc Tele
 ### Installing
 
 ```
-python setup.py install
+pip install pieuvre
 ```
 
 ## Running the tests
 
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
+Pieuvre's tests could be quite improved. However you can have a look! Install the dependencies to run the tests:
 ```
-Give an example
+pip install pieuvre[test]
+```
+
+Then run them with:
+```
+pytest
 ```
 
 ### Usage
