@@ -1,15 +1,17 @@
 
-kosc-workflow
-=============
+Welcome to Pieuvre's documentation
+==================================
 
-This project is a workflow engine aimed at solving Kosc requirements. However there is no documentation yet :(
+Pieuvre is a simple yet powerful workflow engine library developed by `Kosc Telecom <https://www.kosc-telecom.fr/en/>`_, aimed at Django but also usable in standalone mode.
 
-Contents:
 
+Index
+=====
 .. toctree::
    :maxdepth: 2
 
-   install.rst
+   install
+   code
 
 
 Indices and tables
@@ -18,4 +20,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

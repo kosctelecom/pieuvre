@@ -1,0 +1,7 @@
+wheel
+pycodestyle
+sphinx
+sphinx-rtd-theme
+sphinxcontrib-websupport
+pytest==4.0.2
+pytest-cov

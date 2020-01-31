@@ -1,22 +1,58 @@
-# -*- coding: utf-8 -*-
-
+import pathlib
 from setuptools import setup, find_packages
 
-from toolbox.utils.python_setup import *
+
+HERE = pathlib.Path(__file__).parent
+
+# The text of the README file
+README = (HERE / "README.md").read_text()
+VERSION = (HERE / "VERSION").read_text()
+
+
+extras_require = {
+    "doc": [
+        "pycodestyle",
+        "sphinx",
+        "sphinx-rtd-theme",
+        "sphinxcontrib-websupport",
+    ],
+    "test": [
+        "pycodestyle",
+        "pytest==4.0.2",
+        "pytest-cov"
+    ]
+}
 
 
 setup(
-    name='kosc_workflow',
+    name="pieuvre",
     version=VERSION,
-    description='KOSC Workflow module',
+    description="Simple Workflow Engine Library",
     long_description=README,
-    author='Said Ben Rjab',
-    author_email='said.benrjab@kosc-telecom.fr',
-    url='http://gitlab.kosc-telecom.fr/gitlab/tools/kosc_workflow.git',
-    license=license,
-    packages=find_packages(exclude=('tests', 'docs')),
-    install_requires=requirements,
-    setup_requires=setup_requirements,
-    test_suite='tests',
-    tests_require=test_requirements,
+    long_description_content_type="text/markdown",
+    author="Kosc Telecom",
+    author_email="si@kosc-telecom.fr",
+    url="http://github.com/kosctelecom/pieuvre.git",
+    license="Apache",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: Apache Software License",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+    ],
+    packages=find_packages(exclude=("tests", "docs")),
+    install_requires=[
+    ],
+    setup_requires=["wheel"],
+    test_suite="tests",
+    tests_require=extras_require["test"],
+    extras_require=extras_require,
+    python_requires=">=3.5"
 )

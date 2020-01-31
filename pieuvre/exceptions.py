@@ -1,11 +1,13 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import unicode_literals
+"""
+exceptions.py
+=================================================
+Exception definitions.
+"""
 
 
 class WorkflowBaseError(Exception):
     """
-    Base exception for workflow error
+    Base exception for workflow errors
     """
     message = "Error {transition}: {current_state} -> {to_state}"
 
@@ -18,36 +20,42 @@ class WorkflowBaseError(Exception):
 
 class InvalidTransition(WorkflowBaseError):
     """
-    Raise when trying to perform a transition from an invalid state
+    Raised when trying to perform a transition from an invalid state
     """
     message = "Invalid transition {transition}: {current_state} -> {to_state}"
 
 
 class ForbiddenTransition(WorkflowBaseError):
     """
-    Raise when condition is not valid to perform the transition
+    Raised when condition is not valid to perform the transition
     """
     message = "Transition forbidden {transition}: {current_state} -> {to_state}"
 
 
 class TransitionDoesNotExist(WorkflowBaseError):
     """
-    Raise when condition is not valid to perform the transition
+    Raised when transition is not defined
     """
     message = "Transition {transition} does not exist"
 
 
 class TransitionNotFound(WorkflowBaseError):
+    """
+    Raised when transition does not apply to current state and/or destination
+    """
     message = "Transition not found from {current_state} to {to_state}"
 
 
 class WorkflowValidationError(WorkflowBaseError):
+    """
+    Raised by the application when the transition fails
+    """
 
     message = "Workflow validation failed"
 
     def __init__(self, errors=None, **kwargs):
         self.errors = errors
-        super(WorkflowValidationError, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def get_errors(self):
         return self.errors or []

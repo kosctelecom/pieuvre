@@ -1,0 +1,28 @@
+[MASTER]
+
+# :E1101: *%s %r has no %r member*
+#     This is too often wrong to be useful. Models do not have objects members
+
+# :W0212: *Access to a protected member %s of a client class*
+#     Used when a protected member (i.e. class member with a name beginning
+#     with an underscore) is access outside the class or a descendant of the
+#     class where it's defined.
+disable=E1101,W0212
+
+# we do not  want to check for migrations
+ignore=migrations
+
+[MESSAGES CONTROL]
+[REPORTS]
+[TYPECHECK]
+[VARIABLES]
+[BASIC]
+[DESIGN]
+[CLASSES]
+[IMPORTS]
+[MISCELLANEOUS]
+[SIMILARITIES]
+[FORMAT]
+max-line-length=100
+max-module-lines=1000
+indent-string='    '

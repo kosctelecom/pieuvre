@@ -1,19 +1,26 @@
-# -*- coding: utf-8 -*-
 import uuid
 
 from unittest import TestCase
 
-from kosc_workflow import (Workflow, InvalidTransition, TransitionDoesNotExist, ForbiddenTransition,
-                           TransitionNotFound, transition, on_enter_state_check, on_exit_state_check)
+from pieuvre import (
+    Workflow,
+    InvalidTransition,
+    TransitionDoesNotExist,
+    ForbiddenTransition,
+    TransitionNotFound,
+    transition,
+    on_enter_state_check,
+    on_exit_state_check,
+)
 
 
 class MyOrder(object):
     """
     Use this object to mock a django model.
 
-    After changing the value of the state, is_saved is equal a True if save method is called.
-    This allow us to check if the save is called or not !
-
+    After changing the value of the state, is_saved is True
+    if save method is called.
+    This allow us to check if the save is called or not.
     """
 
     def __init__(self, state="draft"):
@@ -99,7 +106,6 @@ class MyWorkflow(Workflow):
 
 
 class TestWorkflow(TestCase):
-
     def setUp(self):
         self.model = MyOrder()
         self.workflow = MyWorkflow(model=self.model)
@@ -120,92 +126,125 @@ class TestWorkflow(TestCase):
         self.assertFalse(self.workflow._check_state(["completed", "rejected"], "draft"))
 
     def test_pre_transition_check(self):
-        valid_transition = {"name": "submit", "source": "draft", "destination": "submitted"}
-        invalid_transition = {"name": "complete", "source": "submitted", "destination": "completed"}
+        valid_transition = {
+            "name": "submit",
+            "source": "draft",
+            "destination": "submitted",
+        }
+        invalid_transition = {
+            "name": "complete",
+            "source": "submitted",
+            "destination": "completed",
+        }
 
         self.assertIsNone(self.workflow._pre_transition_check(valid_transition))
 
         with self.assertRaises(InvalidTransition) as e:
             self.workflow._pre_transition_check(invalid_transition)
         e = e.exception
-        self.assertEqual(e.kwargs['transition'], invalid_transition["name"])
-        self.assertEqual(e.kwargs['current_state'], "draft")
-        self.assertEqual(e.kwargs['to_state'], invalid_transition["destination"])
+        self.assertEqual(e.kwargs["transition"], invalid_transition["name"])
+        self.assertEqual(e.kwargs["current_state"], "draft")
+        self.assertEqual(e.kwargs["to_state"], invalid_transition["destination"])
 
     def test_get_transition_by_name(self):
         self.assertEqual(
             self.workflow._get_transition_by_name("submit"),
-            {"name": "submit", "source": "draft", "destination": "submitted"}
+            {"name": "submit", "source": "draft", "destination": "submitted"},
         )
 
         self.assertEqual(
-            self.workflow._get_transition_by_name("invalid_transition"),
-            {}
+            self.workflow._get_transition_by_name("invalid_transition"), {}
         )
 
     def test_is_transition(self):
-        self.assertTrue(
-            self.workflow.is_transition("submit")
-        )
+        self.assertTrue(self.workflow.is_transition("submit"))
 
-        self.assertFalse(
-            self.workflow.is_transition("invalid_transition")
-        )
+        self.assertFalse(self.workflow.is_transition("invalid_transition"))
 
     def test_finalize_transition(self):
         self.model.is_saved = False
-        self.workflow.finalize_transition({"name": "submit", "source": "draft", "destination": "submitted"})
+        self.workflow.finalize_transition(
+            {"name": "submit", "source": "draft", "destination": "submitted"}
+        )
 
         self.assertTrue(self.model.is_saved)
 
     def test_on_enter_state(self):
         self.assertIsNone(
-            self.workflow._on_enter_state({"name": "reject", "source": "*", "destination": "rejected"})
+            self.workflow._on_enter_state(
+                {"name": "reject", "source": "*", "destination": "rejected"}
+            )
         )
 
-        self.workflow._on_enter_state({"name": "submit", "source": "draft", "destination": "submitted"})
+        self.workflow._on_enter_state(
+            {"name": "submit", "source": "draft", "destination": "submitted"}
+        )
         self.assertTrue(self.model.on_enter_submitted_called)
 
     def test_on_exit_state(self):
         self.assertIsNone(
-            self.workflow._on_exit_state({"name": "reject", "source": "*", "destination": "rejected"})
+            self.workflow._on_exit_state(
+                {"name": "reject", "source": "*", "destination": "rejected"}
+            )
         )
 
-        self.workflow._on_exit_state({"name": "submit", "source": "draft", "destination": "submitted"})
+        self.workflow._on_exit_state(
+            {"name": "submit", "source": "draft", "destination": "submitted"}
+        )
         self.assertTrue(self.model.on_exit_draft_called)
 
     def test_before_transition(self):
         self.assertIsNone(
-            self.workflow._before_transition({"name": "reject", "source": "*", "destination": "rejected"})
+            self.workflow._before_transition(
+                {"name": "reject", "source": "*", "destination": "rejected"}
+            )
         )
 
-        self.workflow._before_transition({"name": "submit", "source": "draft", "destination": "submitted"})
+        self.workflow._before_transition(
+            {"name": "submit", "source": "draft", "destination": "submitted"}
+        )
         self.assertTrue(self.model.before_submit_called)
 
     def test_after_transition(self):
         self.assertIsNone(
-            self.workflow._after_transition({"name": "reject", "source": "*", "destination": "rejected"}, None)
+            self.workflow._after_transition(
+                {"name": "reject", "source": "*", "destination": "rejected"}, None
+            )
         )
 
-        self.workflow._after_transition({"name": "submit", "source": "draft", "destination": "submitted"}, None)
+        self.workflow._after_transition(
+            {"name": "submit", "source": "draft", "destination": "submitted"}, None
+        )
         self.assertTrue(self.model.after_submit_called)
 
     def test_check_transition(self):
-        transition_with_check = {"name": "submit", "source": "draft", "destination": "submitted"}
-        transition_without_check = {"name": "complete", "source": "submitted", "destination": "completed"}
+        transition_with_check = {
+            "name": "submit",
+            "source": "draft",
+            "destination": "submitted",
+        }
+        transition_without_check = {
+            "name": "complete",
+            "source": "submitted",
+            "destination": "completed",
+        }
 
-        self.assertIsNone(self.workflow.check_transition_condition(transition_without_check))
+        self.assertIsNone(
+            self.workflow.check_transition_condition(transition_without_check)
+        )
 
         # check is valid
-        self.assertIsNone(self.workflow.check_transition_condition(transition_with_check))
+        self.assertIsNone(
+            self.workflow.check_transition_condition(transition_with_check)
+        )
 
         self.model.allow_submit = False
         with self.assertRaises(ForbiddenTransition) as e:
             self.workflow.check_transition_condition(transition_with_check)
         e = e.exception
-        self.assertEqual(e.kwargs['transition'], transition_with_check["name"])
-        self.assertEqual(e.kwargs['current_state'], "draft")
-        self.assertEqual(e.kwargs['to_state'], transition_with_check["destination"])
+        self.assertEqual(e.kwargs["transition"], transition_with_check["name"])
+        self.assertEqual(e.kwargs["current_state"], "draft")
+        self.assertEqual(e.kwargs["to_state"], transition_with_check["destination"])
 
     def test_execute_transition(self):
         self.model.is_saved = False
@@ -224,7 +263,7 @@ class TestWorkflow(TestCase):
         with self.assertRaises(TransitionDoesNotExist) as e:
             self.workflow.run_transition("does_not_exist")
         e = e.exception
-        self.assertEqual(e.kwargs['transition'], "does_not_exist")
+        self.assertEqual(e.kwargs["transition"], "does_not_exist")
 
         self.workflow.run_transition("reject")
         self.assertEqual(self.model.state, "rejected")
@@ -235,29 +274,24 @@ class TestWorkflow(TestCase):
 
     def test_get_transition(self):
         self.assertEqual(
-            self.workflow.get_transition("submitted"),
-            self.workflow.submit
+            self.workflow.get_transition("submitted"), self.workflow.submit
         )
         with self.assertRaises(TransitionNotFound) as e:
             self.workflow.get_transition("completed")
-        self.assertEqual(str(e.exception), 'Transition not found from draft to completed')
+        self.assertEqual(
+            str(e.exception), "Transition not found from draft to completed"
+        )
 
     def test_get_next_available_states(self):
         self.assertEqual(
             self.workflow.get_next_available_states(),
             [
-                {
-                    "state": "submitted",
-                    "label": None
-                },
-                {
-                    "state": "rejected",
-                    "label": None
-                }
-            ]
+                {"state": "submitted", "label": None},
+                {"state": "rejected", "label": None},
+            ],
         )
 
         self.assertEqual(
             self.workflow.get_next_available_states("completed"),
-            [{"state": "rejected", "label": None}]
+            [{"state": "rejected", "label": None}],
         )

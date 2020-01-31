@@ -1,3 +1,10 @@
+"""
+utils.py
+=================================================
+Utils.
+"""
+
+
 import datetime
 import functools
 
@@ -20,11 +27,27 @@ class ContextDecorator(object):
         pass
 
 
-class transaction(object):
+class transaction:
+    """
+    No-op replacement for Django transaction if Django is not installed.
+    """
+
     atomic = ContextDecorator()
 
 
-class TestAllTransitionsMixin(object):
+class TestAllTransitionsMixin:
+    """
+    Mixin to launch all transitions of a given workflow to perform
+    a basic sanity check.
+
+    Attributes:
+        factory_class: factory class used to instanciate a model instance
+            for tests
+        transitions (list): list of transitions to test
+        ignore_transitions (list): list of transitions to ignore
+
+    """
+
     factory_class = None
     transitions = []
     ignore_transitions = []
@@ -33,11 +56,17 @@ class TestAllTransitionsMixin(object):
         return self.factory_class(state=state)
 
     def _get_test_transitions(self):
-        return [tr for tr in self.transitions if tr["name"] not in self.ignore_transitions]
+        return [
+            tr for tr in self.transitions if tr["name"] not in self.ignore_transitions
+        ]
 
     def test_all_transitions(self):
         for transition in self._get_test_transitions():
-            sources = transition["source"] if isinstance(transition["source"], list) else [transition["source"], ]
+            sources = (
+                transition["source"]
+                if isinstance(transition["source"], list)
+                else [transition["source"]]
+            )
 
             for source in sources:
                 obj = self._create_instance(source)
